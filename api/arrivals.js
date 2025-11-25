@@ -11,7 +11,7 @@ const FEEDS = [
   'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace',  // A C E
   'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm', // B D F M
   'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw', // N Q R W
-  'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/lirr%2Fgtfs-lirr'  // LIRR
+  // 'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/lirr%2Fgtfs-lirr'  // LIRR
 ];
 
 export default async function handler(req, res) {
@@ -33,23 +33,16 @@ export default async function handler(req, res) {
         );
 
         feed.entity.forEach(entity => {
-          if (entity.tripUpdate && entity.tripUpdate.stopTimeUpdate) {
+        if (entity.tripUpdate && entity.tripUpdate.stopTimeUpdate) {
             const routeId = entity.tripUpdate.trip.routeId;
-            
-            // LIRR Logic
-            const isLIRR_PW = routeId === 'PW' || routeId === '1';
             
             entity.tripUpdate.stopTimeUpdate.forEach(stopUpdate => {
               const stopId = stopUpdate.stopId;
-              let parentId = stopId.substring(0, 3); 
-              let direction = stopId.substring(3);
+              const parentId = stopId.substring(0, 3); 
+              const direction = stopId.substring(3);
 
-              if (isLIRR_PW) {
-                 parentId = "LIRR_PENN"; 
-                 direction = "N"; 
-              }
-
-              if (TARGET_STATIONS.includes(parentId) || parentId === "LIRR_PENN") {
+              // Only process stations in our list
+              if (TARGET_STATIONS.includes(parentId)) {
                 if (!allArrivals[parentId]) allArrivals[parentId] = { N: {}, S: {} };
                 
                 const dirKey = (direction === 'N' || direction === 'S') ? direction : 'N';
@@ -65,7 +58,7 @@ export default async function handler(req, res) {
                 allArrivals[parentId][dirKey][routeId].push(minutesUntil);
               }
             });
-          }
+		}
         });
       } catch (err) {
         console.log("Feed decode warning (skipping feed)");
