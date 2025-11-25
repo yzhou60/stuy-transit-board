@@ -1,11 +1,9 @@
 const axios = require('axios');
 const GtfsRealtimeBindings = require('gtfs-realtime-bindings');
 
-// PASTE YOUR MTA API KEY HERE
-const MTA_API_KEY = process.env.MTA_API_KEY;
+// NO API KEY NEEDED ANYMORE!
 
 // We will filter for these IDs. 
-// Note: We map LIRR Port Washington trains to a custom ID "LIRR_PENN" inside the loop below.
 const TARGET_STATIONS = ['137', 'A36', 'D24', 'R31', 'A41', 'R29', 'D20', 'R27'];
 
 const FEEDS = [
@@ -20,10 +18,11 @@ export default async function handler(req, res) {
   try {
     const allArrivals = {};
 
+    // 1. Fetch feeds WITHOUT headers (Public Access)
     const responses = await Promise.all(FEEDS.map(url => 
       axios.get(url, {
-        responseType: 'arraybuffer',
-        headers: { 'x-api-key': MTA_API_KEY }
+        responseType: 'arraybuffer' 
+        // No headers needed!
       })
     ));
 
@@ -37,9 +36,7 @@ export default async function handler(req, res) {
           if (entity.tripUpdate && entity.tripUpdate.stopTimeUpdate) {
             const routeId = entity.tripUpdate.trip.routeId;
             
-            // --- LIRR LOGIC ---
-            // The LIRR feed dump is huge. We only want Port Washington branch.
-            // Usually Route ID 'PW' or '1'.
+            // LIRR Logic
             const isLIRR_PW = routeId === 'PW' || routeId === '1';
             
             entity.tripUpdate.stopTimeUpdate.forEach(stopUpdate => {
@@ -47,16 +44,14 @@ export default async function handler(req, res) {
               let parentId = stopId.substring(0, 3); 
               let direction = stopId.substring(3);
 
-              // If this is a Port Washington train, hijack the ID so the frontend can find it
               if (isLIRR_PW) {
                  parentId = "LIRR_PENN"; 
-                 direction = "N"; // Force direction for simplicity
+                 direction = "N"; 
               }
 
               if (TARGET_STATIONS.includes(parentId) || parentId === "LIRR_PENN") {
                 if (!allArrivals[parentId]) allArrivals[parentId] = { N: {}, S: {} };
                 
-                // Safety check to ensure N/S keys exist
                 const dirKey = (direction === 'N' || direction === 'S') ? direction : 'N';
                 if (!allArrivals[parentId][dirKey]) allArrivals[parentId][dirKey] = {};
 
@@ -73,7 +68,7 @@ export default async function handler(req, res) {
           }
         });
       } catch (err) {
-        // Silently fail on individual feeds (LIRR sometimes sends empty buffers)
+        console.log("Feed decode warning (skipping feed)");
       }
     });
 
